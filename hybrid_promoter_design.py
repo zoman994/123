@@ -470,94 +470,197 @@ def generate_amyr_multimer(num_sites: int = 4,
 
 def design_amyr_multimer_hybrid(glaa_seq: str, pgap_seq: str,
                                  num_amyr_sites: int = 4,
-                                 include_gcr1: bool = True) -> HybridPromoter:
+                                 include_gcr1: bool = True,
+                                 use_native_scaffold: bool = True) -> HybridPromoter:
     """
-    Стратегия 5: Мультимеризация AmyR сайтов
-    Увеличенное количество AmyR сайтов для усиления индукции крахмалом
+    Стратегия 5: Мультимеризация AmyR сайтов на НАТИВНОМ каркасе
+
+    ВАЖНО: Используем полноразмерный нативный промотор как основу,
+    вставляя дополнительные AmyR сайты в дистальный регион.
+    Это сохраняет:
+    - Хроматиновый контекст
+    - Нативные регуляторные элементы
+    - Правильный спейсинг
+    - 5'-UTR структуру
 
     Args:
         glaa_seq: Последовательность промотора glaA
         pgap_seq: Последовательность промотора pGAP
-        num_amyr_sites: Количество AmyR сайтов (2-6 рекомендуется)
+        num_amyr_sites: Количество ДОПОЛНИТЕЛЬНЫХ AmyR сайтов (2-6 рекомендуется)
         include_gcr1: Включить Gcr1 сайты для активности на глюкозе
+        use_native_scaffold: Использовать нативный промотор как каркас
     """
-    # Генерируем мультимеризованный AmyR энхансер
-    amyr_multimer = generate_amyr_multimer(num_sites=num_amyr_sites,
-                                            spacer_length=15,
-                                            site_type='optimized')
+    if use_native_scaffold:
+        # Используем pGAP как основной каркас (конститутивный, без репрессии)
+        # Вставляем AmyR мультимер в 5'-конец (дистальный энхансерный регион)
 
-    # Gcr1 энхансер (опционально)
-    if include_gcr1:
-        gcr1_sites = "CTTCCAAAAGGAAG"  # Тандемный Gcr1
-        gcr1_section = "GCTAGC" + gcr1_sites + "GCTAGC"
+        # Генерируем мультимеризованный AmyR энхансер
+        amyr_multimer = generate_amyr_multimer(num_sites=num_amyr_sites,
+                                                spacer_length=15,
+                                                site_type='optimized')
+
+        # Gcr1 энхансер для усиления активности на глюкозе
+        if include_gcr1:
+            gcr1_booster = "GCTAGC" + "CTTCCAAAAGGAAG" + "GCTAGC"  # ~26 bp
+        else:
+            gcr1_booster = ""
+
+        # Линкер с сайтом рестрикции для клонирования
+        linker = "AGATCTGCTAGC"  # BglII + NheI
+
+        # ПОЛНАЯ СБОРКА: AmyR мультимер -> Gcr1 -> ПОЛНЫЙ pGAP промотор
+        # Общая длина: ~100 bp (AmyR) + ~26 bp (Gcr1) + ~12 bp (linker) + 816 bp (pGAP) ≈ 950 bp
+        hybrid_seq = amyr_multimer + gcr1_booster + linker + pgap_seq
+
+        total_length = len(hybrid_seq)
+        description = (f"Нативный pGAP scaffold ({len(pgap_seq)} bp) + "
+                      f"{num_amyr_sites}x AmyR энхансер"
+                      f"{' + Gcr1 booster' if include_gcr1 else ''} "
+                      f"= {total_length} bp total")
     else:
-        gcr1_section = ""
+        # Старый вариант с минимальным промотором (не рекомендуется)
+        amyr_multimer = generate_amyr_multimer(num_sites=num_amyr_sites,
+                                                spacer_length=15,
+                                                site_type='optimized')
+        if include_gcr1:
+            gcr1_section = "GCTAGC" + "CTTCCAAAAGGAAG" + "GCTAGC"
+        else:
+            gcr1_section = ""
+        minimal_core = "TATAAAAGGCGCGCCAAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA"
+        linker = "AGATCT"
+        hybrid_seq = amyr_multimer + linker + gcr1_section + minimal_core
+        description = f"Минимальный синтетический: {num_amyr_sites}x AmyR (НЕ РЕКОМЕНДУЕТСЯ - слишком короткий)"
 
-    # Минимальный коровый промотор с TATA и Inr
-    minimal_core = "TATAAAAGGCGCGCCAAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA"
+    elements = find_regulatory_elements(hybrid_seq, 'native-scaffold-multimer')
 
-    # Сборка: AmyR multimer -> [Gcr1] -> Core
-    linker = "AGATCT"  # BglII сайт
-    hybrid_seq = amyr_multimer + linker + gcr1_section + minimal_core
-
-    elements = find_regulatory_elements(hybrid_seq, 'synthetic-multimer')
-
-    # Предсказание активности на основе количества сайтов
-    starch_activity = min(10, 6 + num_amyr_sites)  # Больше сайтов = выше активность
-    glucose_activity = 8 if include_gcr1 else 3
+    # Предсказание активности
+    starch_activity = min(10, 6 + num_amyr_sites)
+    glucose_activity = 9 if (include_gcr1 and use_native_scaffold) else (8 if include_gcr1 else 3)
 
     return HybridPromoter(
-        name=f"pAmyR-{num_amyr_sites}x",
+        name=f"pAmyR-{num_amyr_sites}x-native",
         sequence=hybrid_seq,
-        description=f"Мультимер AmyR ({num_amyr_sites} сайтов) + {'Gcr1 + ' if include_gcr1 else ''}минимальный промотор",
+        description=description,
         elements=elements,
-        strategy="amyr_multimer",
+        strategy="amyr_multimer_native_scaffold",
         predicted_activity={
             'glucose': f"{'Высокая' if include_gcr1 else 'Низкая'} ({glucose_activity}/10)",
             'starch': f"Очень высокая ({starch_activity}/10)",
             'maltose': f"Очень высокая ({starch_activity}/10)",
-            'regulation': f'{num_amyr_sites}x AmyR усиление'
+            'regulation': f'{num_amyr_sites}x AmyR на нативном каркасе'
         }
     )
 
 
 def design_superpromoter(glaa_seq: str, pgap_seq: str) -> HybridPromoter:
     """
-    Стратегия 6: Супер-промотор
-    Максимальная активность на всех источниках углерода
-    Комбинация: 4x AmyR + 2x Gcr1 + удаление CreA + оптимизированный коровый промотор
+    Стратегия 6: Супер-промотор на ПОЛНОРАЗМЕРНОМ нативном каркасе
+
+    Архитектура:
+    5'--[4x AmyR]--[2x Gcr1]--[pGAP полный промотор без CreA]--ATG
+
+    Общая длина: ~1000 bp (сохраняем нативный контекст!)
     """
-    # 4 оптимизированных AmyR сайта
+    # 4 оптимизированных AmyR сайта с правильным спейсингом
     amyr_multimer = generate_amyr_multimer(num_sites=4, spacer_length=12, site_type='optimized')
 
-    # 2 Gcr1 сайта
+    # 2 Gcr1 сайта (тандем для усиления)
     gcr1_dual = "CTTCCGCTAGCGGAAG"
 
-    # Оптимизированный коровый промотор (без CreA, с сильным TATA)
-    optimized_core = (
-        "CCAATGCTAGC"           # CCAAT box
-        "TATAAAAGGCG"           # Strong TATA
-        "TCAGTCTCAGT"           # Initiator region
-        "AAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA"  # 5'-UTR from pGAP
-    )
+    # Мутируем CreA сайты в pGAP (если есть) для снятия репрессии
+    modified_pgap = pgap_seq
+    crea_sites = find_crea_sites(pgap_seq)
+    if crea_sites:
+        modified_pgap = list(pgap_seq)
+        for pos, site in crea_sites[:3]:  # Мутируем до 3 сайтов
+            # Мутация: SYGGRG -> SYAARG
+            for i in range(len(site)):
+                if i >= 2 and modified_pgap[pos + i] == 'G':
+                    modified_pgap[pos + i] = 'A'
+                    break
+        modified_pgap = ''.join(modified_pgap)
 
-    # Сборка
-    spacer = "GCTAGCGCTAGC"  # 2x NheI для клонирования
-    hybrid_seq = amyr_multimer + spacer + gcr1_dual + spacer + optimized_core
+    # Сборка с линкерами для клонирования
+    linker1 = "GCTAGC"      # NheI
+    linker2 = "AGATCTGCTAGC"  # BglII + NheI
 
-    elements = find_regulatory_elements(hybrid_seq, 'superpromoter')
+    # ПОЛНАЯ КОНСТРУКЦИЯ
+    hybrid_seq = amyr_multimer + linker1 + gcr1_dual + linker2 + modified_pgap
+
+    elements = find_regulatory_elements(hybrid_seq, 'superpromoter-native')
+
+    total_len = len(hybrid_seq)
 
     return HybridPromoter(
-        name="pSuperHybrid",
+        name="pSuperHybrid-FL",
         sequence=hybrid_seq,
-        description="Супер-промотор: 4x AmyR + 2x Gcr1 + оптимизированный core (без CreA)",
+        description=f"Супер-промотор полноразмерный ({total_len} bp): 4x AmyR + 2x Gcr1 + pGAP(ΔCreA)",
         elements=elements,
-        strategy="superpromoter",
+        strategy="superpromoter_full_length",
         predicted_activity={
-            'glucose': 'Очень высокая (9/10)',
-            'starch': 'Максимальная (10/10)',
-            'maltose': 'Максимальная (10/10)',
-            'regulation': 'Синергистическая суперактивация'
+            'glucose': 'Очень высокая (9/10) - Gcr1 + нативный pGAP',
+            'starch': 'Максимальная (10/10) - 4x AmyR',
+            'maltose': 'Максимальная (10/10) - 4x AmyR',
+            'regulation': 'Полноразмерный нативный контекст сохранен'
+        }
+    )
+
+
+def design_glaa_enhanced(glaa_seq: str, pgap_seq: str,
+                         num_extra_amyr: int = 2,
+                         mutate_crea: bool = True) -> HybridPromoter:
+    """
+    Стратегия 7: Усиленный glaA промотор
+
+    Берем ПОЛНЫЙ нативный glaA промотор и:
+    1. Добавляем дополнительные AmyR сайты в 5'-конец
+    2. Опционально мутируем CreA сайты
+    3. Добавляем Gcr1 сайты для активности на глюкозе
+
+    Это сохраняет ВСЮ нативную архитектуру glaA!
+    """
+    # Дополнительные AmyR сайты
+    extra_amyr = generate_amyr_multimer(num_sites=num_extra_amyr,
+                                        spacer_length=15,
+                                        site_type='optimized')
+
+    # Gcr1 для глюкозной активности
+    gcr1_insert = "GCTAGCCTTCCAAAAGGAAGGCTAGC"
+
+    # Модифицируем glaA
+    modified_glaa = glaa_seq
+    mutations_made = []
+
+    if mutate_crea:
+        crea_sites = find_crea_sites(glaa_seq)
+        modified_glaa = list(glaa_seq)
+        for pos, site in crea_sites:
+            for i in range(len(site)):
+                if i >= 2 and modified_glaa[pos + i] == 'G':
+                    modified_glaa[pos + i] = 'A'
+                    mutations_made.append(f"{pos+i+1}G>A")
+                    break
+        modified_glaa = ''.join(modified_glaa)
+
+    # Сборка: Extra AmyR -> Gcr1 -> ПОЛНЫЙ glaA (с/без мутаций CreA)
+    linker = "AGATCT"
+    hybrid_seq = extra_amyr + linker + gcr1_insert + modified_glaa
+
+    elements = find_regulatory_elements(hybrid_seq, 'enhanced-glaA')
+
+    crea_status = f"ΔCreA ({len(mutations_made)} мутаций)" if mutate_crea else "CreA intact"
+
+    return HybridPromoter(
+        name=f"pGlaA-enhanced-{num_extra_amyr}xAmyR",
+        sequence=hybrid_seq,
+        description=f"Усиленный glaA ({len(hybrid_seq)} bp): +{num_extra_amyr}x AmyR, +Gcr1, {crea_status}",
+        elements=elements,
+        strategy="enhanced_native_glaa",
+        predicted_activity={
+            'glucose': f"{'Высокая (8/10)' if mutate_crea else 'Низкая (2/10) - CreA репрессия'}",
+            'starch': 'Максимальная (10/10) - нативный glaA + extra AmyR',
+            'maltose': 'Максимальная (10/10) - нативный glaA + extra AmyR',
+            'regulation': f'Нативный glaA scaffold сохранен, {crea_status}'
         }
     )
 
@@ -595,10 +698,16 @@ def design_all_hybrids(glaa_seq: str = None, pgap_seq: str = None,
         design_dual_enhancer_hybrid(glaa_seq, pgap_seq),
     ]
 
-    # Добавляем варианты с мультимеризацией AmyR
+    # Добавляем варианты с мультимеризацией AmyR НА НАТИВНОМ КАРКАСЕ
     if include_multimers:
-        hybrids.append(design_amyr_multimer_hybrid(glaa_seq, pgap_seq, num_amyr_sites=4))
+        # Полноразмерные варианты (рекомендуемые)
+        hybrids.append(design_amyr_multimer_hybrid(glaa_seq, pgap_seq,
+                                                    num_amyr_sites=4,
+                                                    use_native_scaffold=True))
         hybrids.append(design_superpromoter(glaa_seq, pgap_seq))
+        hybrids.append(design_glaa_enhanced(glaa_seq, pgap_seq,
+                                            num_extra_amyr=2,
+                                            mutate_crea=True))
 
     return hybrids
 
@@ -706,9 +815,10 @@ def create_activity_heatmap(hybrids: List[HybridPromoter]):
         'pGlaA-ΔCreA': [7, 10, 10],      # Снята репрессия
         'pGAP-GlaA-Modular': [8, 6, 6],  # Хорошая на глюкозе
         'pDual-Enhancer': [8, 8, 8],     # Сбалансированная
-        # Новые варианты с мультимеризацией AmyR
-        'pAmyR-4x': [8, 10, 10],         # 4x AmyR + Gcr1
-        'pSuperHybrid': [9, 10, 10],     # Супер-промотор (максимум)
+        # ПОЛНОРАЗМЕРНЫЕ варианты с мультимеризацией AmyR (рекомендуемые)
+        'pAmyR-4x-native': [9, 10, 10],      # 4x AmyR + полный pGAP (~950 bp)
+        'pSuperHybrid-FL': [9, 10, 10],      # Супер-промотор полноразмерный (~1000 bp)
+        'pGlaA-enhanced-2xAmyR': [8, 10, 10], # Усиленный glaA (~1100 bp)
     }
 
     data = np.array([activity_scores.get(p, [5, 5, 5]) for p in promoters])
