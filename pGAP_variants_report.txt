@@ -1,0 +1,162 @@
+==========================================================================================
+МОДИФИЦИРОВАННЫЕ ВАРИАНТЫ ПРОМОТОРА pGAP
+==========================================================================================
+
+
+==========================================================================================
+ВАРИАНТ 0: pGAP_original
+==========================================================================================
+Описание: Original pGAP promoter from A. niger (816 bp)
+Длина: 816 п.н.
+GC-содержание: 55.1%
+
+Модификации:None - wild type sequence
+
+Последовательность (первые 100 п.н.):
+5'-TACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATTACATCATCTCATCCGCCCGGTTCCTCGCCTCCGCGGCAGTCTACGGGT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...CTCACGAAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 1: pGAP_v1_derepressed
+==========================================================================================
+Описание: CreA/Mig1 sites mutated for carbon catabolite derepression (816 bp)
+Длина: 816 п.н.
+GC-содержание: 54.5%
+
+Модификации:
+Mutations to abolish CreA/Mig1 binding (5 sites):
+  - pos 118: CCGGGG → CCAGGG (GG→AG disrupts consensus)
+  - pos 144: CTGGAG → CTAGAG
+  - pos 349: CTGGGG → CTAGGG
+  - pos 357: CTGGGG → CTAGGG
+  - pos 498: GCGGAG → GCAGAG
+Expected effect: 2-10x increase in glucose presence
+
+Последовательность (первые 100 п.н.):
+5'-TACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATTACATCATCTCATCCGCCCGGTTCCTCGCCTCCGCGGCAGTCTACGGGT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...CTCACGAAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 2: pGAP_v2_core_optimized
+==========================================================================================
+Описание: CreA derepressed + TATA-box + Kozak optimization (796 bp)
+Длина: 796 п.н.
+GC-содержание: 54.5%
+
+Модификации:
+Based on v1 (CreA mutations) plus:
+  - Optimized TATA-box: TATAAAA at -30 from TSS
+  - Kozak consensus: ACCGCCACC preceding ATG
+  - Shortened 5'-UTR for better translation
+Expected effect: 5-15x increase vs original
+
+Последовательность (первые 100 п.н.):
+5'-TACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATTACATCATCTCATCCGCCCGGTTCCTCGCCTCCGCGGCAGTCTACGGGT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...TCCTCCCCTCCTCTCGGAAGCTTGACTAACCATTATAAAAAACCGCCACC-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 3: pGAP_v3_gcr1_enhanced
+==========================================================================================
+Описание: v2 + Gcr1 cassette (4x CTTCC) for glycolytic activation (825 bp)
+Длина: 825 п.н.
+GC-содержание: 55.2%
+
+Модификации:
+Based on v2 plus:
+  - Inserted Gcr1 binding cassette: (CTTCC)x4 with GGG spacers
+  - Position: -500 from ATG (upstream activation region)
+  - Total Gcr1 sites: 11 (7 original + 4 added)
+Expected effect: 10-25x increase on glucose
+
+Последовательность (первые 100 п.н.):
+5'-TACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATTACATCATCTCATCCGCCCGGTTCCTCGCCTCCGCGGCAGTCTACGGGT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...TCCTCCCCTCCTCTCGGAAGCTTGACTAACCATTATAAAAAACCGCCACC-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 4: pGAP_v4_fully_enhanced
+==========================================================================================
+Описание: Maximum enhancement: UAS + CAAT + Gcr1x4 + TATA + Kozak (895 bp)
+Длина: 816 п.н.
+GC-содержание: 54.5%
+
+Модификации:
+Complete promoter redesign:
+  - Added UAS element at 5' end (44 bp enhancer)
+  - All 5 CreA sites mutated
+  - Additional CAAT-box for general enhancement
+  - Gcr1 cassette (4x) for glucose-responsive activation
+  - Optimized TATA-box (TATAAAA)
+  - Strong Kozak context (ACCGCCACC)
+Expected effect: 50-100x increase potential
+
+Последовательность (первые 100 п.н.):
+5'-CGGTGAAAGTGAAACGTGATTTCATGCGTCATTTTGAACATTTTGGGGTACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...AATTCATCTTCCAAGTGAGTCTTCCTTATAAAAAGGAGGTAACCGCCACC-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 5: pGAP_v5_inducible_hybrid
+==========================================================================================
+Описание: Hybrid inducible: TetO elements + enhanced pGAP (859 bp)
+Длина: 854 п.н.
+GC-содержание: 55.3%
+
+Модификации:
+Inducible hybrid promoter design:
+  - 2x TetO operators for tetracycline-inducible control
+  - CreA-derepressed pGAP backbone
+  - Gcr1 enhancement cassette
+  - Optimized TATA and Kozak
+  - Allows both constitutive and induced expression
+Expected effect: Tunable 10-100x expression
+
+Последовательность (первые 100 п.н.):
+5'-TCCCTATCAGTGATAGAGAGGGGTCCCTATCAGTGATAGAGAGGGGTACTACTATGAAAGACCGCGATGGGCCGATAGTATAGTTAGTTACTTCCATTAC...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...TCATCTCCCCTCCCAGCTCCTCCCCTCCTCTCGTATAAAAAACCGCCACC-ATG-3'
+
+==========================================================================================
+ВАРИАНТ 6: pGAP_v6_minimal_enhanced
+==========================================================================================
+Описание: Minimal enhanced promoter with essential elements (302 bp)
+Длина: 324 п.н.
+GC-содержание: 54.9%
+
+Модификации:
+Minimized promoter retaining key elements:
+  - Gcr1 cassette (4x) for activation
+  - Essential proximal region only
+  - CAAT-box for enhancement
+  - Optimized TATA and Kozak
+  - Compact design (~300 bp vs 816 bp original)
+Expected effect: 5-20x in minimal footprint
+
+Последовательность (первые 100 п.н.):
+5'-CTTCCGGGCTTCCGGGCTTCCGGGCTTCCGGGGGAGGACCCAGTAGTAAGTAGGCCTGACCTGGTCGTTGCGTCAGTCCAGAGGTTCCCTCCCCTACCCT...-3'
+
+Последовательность (последние 50 п.н. + ATG):
+...TCATCTCCCCTCCCAGCTCCTCCCCTCCTCTCGTATAAAAAACCGCCACC-ATG-3'
+
+==========================================================================================
+СРАВНИТЕЛЬНАЯ ТАБЛИЦА
+==========================================================================================
+
+Вариант                           Длина    GC% Ожидаемый эффект              
+--------------------------------------------------------------------------------
+pGAP_original                       816  55.1% Базовый (1x)                  
+pGAP_v1_derepressed                 816  54.5% 2-10x (дерепрессия)           
+pGAP_v2_core_optimized              796  54.5% 5-15x (коровая оптим.)        
+pGAP_v3_gcr1_enhanced               825  55.2% 10-25x (Gcr1 усиление)        
+pGAP_v4_fully_enhanced              816  54.5% 50-100x (полная оптим.)       
+pGAP_v5_inducible_hybrid            854  55.3% 10-100x (индуцибельный)       
+pGAP_v6_minimal_enhanced            324  54.9% 5-20x (минимальный)           
