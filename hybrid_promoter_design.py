@@ -383,7 +383,205 @@ def design_dual_enhancer_hybrid(glaa_seq: str, pgap_seq: str) -> HybridPromoter:
     )
 
 
-def design_all_hybrids(glaa_seq: str = None, pgap_seq: str = None) -> List[HybridPromoter]:
+# =============================================================================
+# МУЛЬТИМЕРИЗАЦИЯ AmyR САЙТОВ
+# =============================================================================
+
+# Консенсусные последовательности AmyR сайтов
+AMYR_CONSENSUS = {
+    'canonical': 'CGGN8CGG',      # Классический тандемный мотив
+    'half_site': 'CGGAGG',         # Полусайт
+    'variant1': 'CGGAAG',          # Вариант 1
+    'variant2': 'CGGNTG',          # Вариант 2
+    'strong': 'CGGAAATGCCGG',      # Сильный консенсус (8 bp спейсер)
+}
+
+# Оптимизированные AmyR сайты из литературы
+AMYR_OPTIMIZED_SITES = [
+    {
+        'name': 'AmyR-opt1',
+        'sequence': 'CGGAAATGCCGG',  # Сильный сайт
+        'strength': 10,
+        'reference': 'Petersen et al., 1999'
+    },
+    {
+        'name': 'AmyR-opt2',
+        'sequence': 'CGGAGATGCCGG',  # Средний сайт
+        'strength': 7,
+        'reference': 'Tani et al., 2001'
+    },
+    {
+        'name': 'AmyR-half',
+        'sequence': 'CGGAGG',         # Полусайт
+        'strength': 4,
+        'reference': 'vanKuyk et al., 2012'
+    },
+]
+
+
+def generate_amyr_multimer(num_sites: int = 4,
+                           spacer_length: int = 15,
+                           site_type: str = 'optimized') -> str:
+    """
+    Генерация мультимеризованного AmyR энхансера
+
+    Args:
+        num_sites: Количество AmyR сайтов (рекомендуется 2-6)
+        spacer_length: Длина спейсера между сайтами (10-20 bp)
+        site_type: Тип сайта ('optimized', 'canonical', 'mixed')
+
+    Returns:
+        Последовательность с мультимеризованными AmyR сайтами
+    """
+    import random
+
+    # Выбор сайтов
+    if site_type == 'optimized':
+        site_seq = 'CGGAAATGCCGG'  # Сильный консенсус
+    elif site_type == 'canonical':
+        site_seq = 'CGGAGATGACGG'  # Канонический
+    elif site_type == 'mixed':
+        sites = ['CGGAAATGCCGG', 'CGGAGATGCCGG', 'CGGAGG']
+        site_seq = None  # Будем выбирать случайно
+    else:
+        site_seq = 'CGGAAATGCCGG'
+
+    # Генерация спейсеров (AT-богатые для гибкости)
+    def generate_spacer(length: int) -> str:
+        # AT-богатый спейсер с небольшим количеством GC
+        bases = 'AATT' * 3 + 'GC'  # ~75% AT
+        return ''.join(random.choice(bases) for _ in range(length))
+
+    # Сборка мультимера
+    parts = []
+    for i in range(num_sites):
+        if site_type == 'mixed':
+            current_site = random.choice(sites)
+        else:
+            current_site = site_seq
+
+        parts.append(current_site)
+
+        if i < num_sites - 1:  # Добавляем спейсер между сайтами
+            parts.append(generate_spacer(spacer_length))
+
+    return ''.join(parts)
+
+
+def design_amyr_multimer_hybrid(glaa_seq: str, pgap_seq: str,
+                                 num_amyr_sites: int = 4,
+                                 include_gcr1: bool = True) -> HybridPromoter:
+    """
+    Стратегия 5: Мультимеризация AmyR сайтов
+    Увеличенное количество AmyR сайтов для усиления индукции крахмалом
+
+    Args:
+        glaa_seq: Последовательность промотора glaA
+        pgap_seq: Последовательность промотора pGAP
+        num_amyr_sites: Количество AmyR сайтов (2-6 рекомендуется)
+        include_gcr1: Включить Gcr1 сайты для активности на глюкозе
+    """
+    # Генерируем мультимеризованный AmyR энхансер
+    amyr_multimer = generate_amyr_multimer(num_sites=num_amyr_sites,
+                                            spacer_length=15,
+                                            site_type='optimized')
+
+    # Gcr1 энхансер (опционально)
+    if include_gcr1:
+        gcr1_sites = "CTTCCAAAAGGAAG"  # Тандемный Gcr1
+        gcr1_section = "GCTAGC" + gcr1_sites + "GCTAGC"
+    else:
+        gcr1_section = ""
+
+    # Минимальный коровый промотор с TATA и Inr
+    minimal_core = "TATAAAAGGCGCGCCAAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA"
+
+    # Сборка: AmyR multimer -> [Gcr1] -> Core
+    linker = "AGATCT"  # BglII сайт
+    hybrid_seq = amyr_multimer + linker + gcr1_section + minimal_core
+
+    elements = find_regulatory_elements(hybrid_seq, 'synthetic-multimer')
+
+    # Предсказание активности на основе количества сайтов
+    starch_activity = min(10, 6 + num_amyr_sites)  # Больше сайтов = выше активность
+    glucose_activity = 8 if include_gcr1 else 3
+
+    return HybridPromoter(
+        name=f"pAmyR-{num_amyr_sites}x",
+        sequence=hybrid_seq,
+        description=f"Мультимер AmyR ({num_amyr_sites} сайтов) + {'Gcr1 + ' if include_gcr1 else ''}минимальный промотор",
+        elements=elements,
+        strategy="amyr_multimer",
+        predicted_activity={
+            'glucose': f"{'Высокая' if include_gcr1 else 'Низкая'} ({glucose_activity}/10)",
+            'starch': f"Очень высокая ({starch_activity}/10)",
+            'maltose': f"Очень высокая ({starch_activity}/10)",
+            'regulation': f'{num_amyr_sites}x AmyR усиление'
+        }
+    )
+
+
+def design_superpromoter(glaa_seq: str, pgap_seq: str) -> HybridPromoter:
+    """
+    Стратегия 6: Супер-промотор
+    Максимальная активность на всех источниках углерода
+    Комбинация: 4x AmyR + 2x Gcr1 + удаление CreA + оптимизированный коровый промотор
+    """
+    # 4 оптимизированных AmyR сайта
+    amyr_multimer = generate_amyr_multimer(num_sites=4, spacer_length=12, site_type='optimized')
+
+    # 2 Gcr1 сайта
+    gcr1_dual = "CTTCCGCTAGCGGAAG"
+
+    # Оптимизированный коровый промотор (без CreA, с сильным TATA)
+    optimized_core = (
+        "CCAATGCTAGC"           # CCAAT box
+        "TATAAAAGGCG"           # Strong TATA
+        "TCAGTCTCAGT"           # Initiator region
+        "AAGCTTGACTAACCATTACCCCGCCACATAGACACATCTAAACA"  # 5'-UTR from pGAP
+    )
+
+    # Сборка
+    spacer = "GCTAGCGCTAGC"  # 2x NheI для клонирования
+    hybrid_seq = amyr_multimer + spacer + gcr1_dual + spacer + optimized_core
+
+    elements = find_regulatory_elements(hybrid_seq, 'superpromoter')
+
+    return HybridPromoter(
+        name="pSuperHybrid",
+        sequence=hybrid_seq,
+        description="Супер-промотор: 4x AmyR + 2x Gcr1 + оптимизированный core (без CreA)",
+        elements=elements,
+        strategy="superpromoter",
+        predicted_activity={
+            'glucose': 'Очень высокая (9/10)',
+            'starch': 'Максимальная (10/10)',
+            'maltose': 'Максимальная (10/10)',
+            'regulation': 'Синергистическая суперактивация'
+        }
+    )
+
+
+def design_tunable_promoter_series(glaa_seq: str, pgap_seq: str) -> List[HybridPromoter]:
+    """
+    Создание серии промоторов с разным количеством AmyR сайтов
+    для fine-tuning экспрессии
+    """
+    series = []
+
+    for num_sites in [1, 2, 3, 4, 6]:
+        hybrid = design_amyr_multimer_hybrid(
+            glaa_seq, pgap_seq,
+            num_amyr_sites=num_sites,
+            include_gcr1=True
+        )
+        series.append(hybrid)
+
+    return series
+
+
+def design_all_hybrids(glaa_seq: str = None, pgap_seq: str = None,
+                       include_multimers: bool = True) -> List[HybridPromoter]:
     """Создание всех вариантов гибридных промоторов"""
     if glaa_seq is None:
         glaa_seq = GLAA_REAL_PROMOTER
@@ -396,6 +594,11 @@ def design_all_hybrids(glaa_seq: str = None, pgap_seq: str = None) -> List[Hybri
         design_modular_hybrid(glaa_seq, pgap_seq),
         design_dual_enhancer_hybrid(glaa_seq, pgap_seq),
     ]
+
+    # Добавляем варианты с мультимеризацией AmyR
+    if include_multimers:
+        hybrids.append(design_amyr_multimer_hybrid(glaa_seq, pgap_seq, num_amyr_sites=4))
+        hybrids.append(design_superpromoter(glaa_seq, pgap_seq))
 
     return hybrids
 
@@ -497,12 +700,15 @@ def create_activity_heatmap(hybrids: List[HybridPromoter]):
 
     # Оценки активности (0-10)
     activity_scores = {
-        'glaA (WT)': [2, 10, 10],      # Репрессия глюкозой, высокая на крахмале
-        'pGAP (WT)': [9, 5, 5],         # Высокая на глюкозе, средняя иначе
-        'pGlaA-GAP-Tandem': [8, 9, 9],  # Высокая везде
-        'pGlaA-ΔCreA': [7, 10, 10],     # Снята репрессия
-        'pGAP-GlaA-Modular': [8, 6, 6], # Хорошая на глюкозе
-        'pDual-Enhancer': [8, 8, 8],    # Сбалансированная
+        'glaA (WT)': [2, 10, 10],       # Репрессия глюкозой, высокая на крахмале
+        'pGAP (WT)': [9, 5, 5],          # Высокая на глюкозе, средняя иначе
+        'pGlaA-GAP-Tandem': [8, 9, 9],   # Высокая везде
+        'pGlaA-ΔCreA': [7, 10, 10],      # Снята репрессия
+        'pGAP-GlaA-Modular': [8, 6, 6],  # Хорошая на глюкозе
+        'pDual-Enhancer': [8, 8, 8],     # Сбалансированная
+        # Новые варианты с мультимеризацией AmyR
+        'pAmyR-4x': [8, 10, 10],         # 4x AmyR + Gcr1
+        'pSuperHybrid': [9, 10, 10],     # Супер-промотор (максимум)
     }
 
     data = np.array([activity_scores.get(p, [5, 5, 5]) for p in promoters])
