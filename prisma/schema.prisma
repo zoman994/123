@@ -1,0 +1,696 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+// Организм: AN=A.niger, TR=T.reesei, KL=K.lactis, SC=S.cerevisiae, PP=P.pastoris, YL=Y.lipolytica
+enum Organism {
+  AN
+  TR
+  KL
+  SC
+  PP
+  YL
+}
+
+// Тип направления: Фундаментальное, Прикладное
+enum DirectionType {
+  FUNDAMENTAL
+  APPLIED
+}
+
+// Статус проекта: Планируется, В работе, Приостановлен, Завершён, Отменён
+enum ProjectStatus {
+  PLANNED
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+// Статус эксперимента: Запланирован, В работе, Завершён, Отменён
+enum ExpStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Результат эксперимента: Успешно, Частично, Неудачно, Не определён
+enum ExpResult {
+  SUCCESS
+  PARTIAL
+  FAILURE
+  UNDEFINED
+}
+
+// Тип работы: Клонирование, Трансформация, Ферментация, Аналитика, Скрининг
+enum WorkType {
+  CLONING
+  TRANSFORMATION
+  FERMENTATION
+  ANALYTICS
+  SCREENING
+}
+
+// Приоритет: Высокий, Средний, Низкий
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// Тип штамма: Дикий тип, Мутант, Рекомбинант, Музейный
+enum StrainType {
+  WILD_TYPE
+  MUTANT
+  RECOMBINANT
+  MUSEUM
+}
+
+// Тип конструкции: Экспрессионный вектор, Нокаут-кассета, Интеграционная плазмида
+enum ConstructType {
+  EXPRESSION_VECTOR
+  KNOCKOUT_CASSETTE
+  INTEGRATION_PLASMID
+}
+
+// Тип геля: Агарозный, ПААГ, SDS-PAGE, Нативный
+enum GelType {
+  AGAROSE
+  PAAG
+  SDS_PAGE
+  NATIVE
+}
+
+// Тип анализа: ДНК, РНК, Белок
+enum AnalysisType {
+  DNA
+  RNA
+  PROT
+}
+
+// Тип стока: Глицериновый сток, Споры, Мицелий, Криопробирка
+enum StockType {
+  GLYCEROL
+  SPORES
+  MYCELIUM
+  CRYOVIAL
+}
+
+// Статус секвенирования: Не секвенирован, В работе, Подтверждён, Ошибка
+enum SeqStatus {
+  NOT_SEQUENCED
+  IN_PROGRESS
+  CONFIRMED
+  ERROR
+}
+
+// Верификация: ПЦР, Секвенирование, Рестрикция, Не проверен
+enum Verification {
+  PCR
+  SEQUENCING
+  RESTRICTION
+  NOT_VERIFIED
+}
+
+// Категория протокола: Клонирование, Трансформация, Ферментация, Аналитика
+enum ProtocolCategory {
+  CLONING
+  TRANSFORMATION
+  FERMENTATION
+  ANALYTICS
+}
+
+// Тип файла: Гель, Последовательность, Данные, Отчёт, Фото, Карта, Протокол, Другое
+enum FileType {
+  GEL
+  SEQUENCE
+  DATA
+  REPORT
+  PHOTO
+  MAP
+  PROTOCOL
+  OTHER
+}
+
+// Статус сообщения: Новое, Прочитано, В работе, Выполнено
+enum MessageStatus {
+  NEW
+  READ
+  IN_PROGRESS
+  DONE
+}
+
+// Цвет сообщения: Белый, Жёлтый, Красный, Зелёный
+enum MessageColor {
+  WHITE
+  YELLOW
+  RED
+  GREEN
+}
+
+// Тип образца: Геномная ДНК, Плазмида, ПЦР-продукт, кДНК, РНК
+enum SampleType {
+  GENOMIC_DNA
+  PLASMID
+  PCR_PRODUCT
+  CDNA
+  RNA
+}
+
+// Категория реагента: Ферменты, Буферы, Антибиотики, Красители, Среды
+enum ReagentCategory {
+  ENZYMES
+  BUFFERS
+  ANTIBIOTICS
+  DYES
+  MEDIA
+}
+
+// Категория расходника: Пластик, Фильтры, Перчатки, Наконечники
+enum ConsumableCategory {
+  PLASTIC
+  FILTERS
+  GLOVES
+  TIPS
+}
+
+// ============================================
+// СПРАВОЧНЫЕ ТАБЛИЦЫ
+// ============================================
+
+model Tag {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  experiments ExperimentTag[]
+
+  @@map("tags")
+}
+
+model StorageLocation {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  primers     Primer[]
+  pcrProducts PcrProduct[]
+  stocks      Stock[]
+  samples     Sample[]
+  reagents    Reagent[]
+  equipment   Equipment[]
+
+  @@map("storage_locations")
+}
+
+model Box {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  stocks  Stock[]
+  samples Sample[]
+
+  @@map("boxes")
+}
+
+model Promoter {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  constructs Construct[]
+
+  @@map("promoters")
+}
+
+model Terminator {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  constructs Construct[]
+
+  @@map("terminators")
+}
+
+model Gene {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  constructs Construct[]
+
+  @@map("genes")
+}
+
+// ============================================
+// ОСНОВНЫЕ ТАБЛИЦЫ
+// ============================================
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  fullName       String   @map("full_name")
+  role           String?
+  phone          String?
+  specialization String?
+  status         String   @default("Активный")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  createdDirections   Direction[]
+  ledProjects         Project[]    @relation("ProjectLead")
+  createdProjects     Project[]    @relation("ProjectCreator")
+  executedExperiments Experiment[] @relation("ExperimentExecutor")
+  createdExperiments  Experiment[] @relation("ExperimentCreator")
+  createdStrains      Strain[]
+  createdConstructs   Construct[]
+  createdPcrProducts  PcrProduct[]
+  createdStocks       Stock[]
+  createdSamples      Sample[]
+  uploadedFiles       File[]
+  authoredProtocols   Protocol[]
+  sentMessages        Message[]    @relation("MessageFrom")
+  receivedMessages    Message[]    @relation("MessageTo")
+  assignedTasks       Task[]       @relation("TaskAssignee")
+  completedTasks      Task[]       @relation("TaskCompleter")
+
+  @@map("users")
+}
+
+model Direction {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  fullName    String        @map("full_name")
+  type        DirectionType
+  description String?
+  createdById String        @map("created_by_id")
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now()) @map("created_at")
+  projects    Project[]
+
+  @@map("directions")
+}
+
+model Enzyme {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  name           String
+  ecNumber       String?   @map("ec_number")
+  geneName       String?   @map("gene_name")
+  sourceOrganism Organism? @map("source_organism")
+  sequenceAa     String?   @map("sequence_aa") @db.Text
+  mwKda          Float?    @map("mw_kda")
+  pi             Float?
+  glycosylation  String?
+  optimalPh      Float?    @map("optimal_ph")
+  optimalTempC   Int?      @map("optimal_temp_c")
+  application    String?   @db.Text
+  notes          String?   @db.Text
+  projects       Project[]
+
+  @@map("enzymes")
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  projectId      String        @unique @map("project_id")
+  directionId    String        @map("direction_id")
+  direction      Direction     @relation(fields: [directionId], references: [id])
+  enzymeId       String?       @map("enzyme_id")
+  enzyme         Enzyme?       @relation(fields: [enzymeId], references: [id])
+  shortCode      String        @map("short_code")
+  name           String
+  description    String?       @db.Text
+  expectedResult String?       @map("expected_result") @db.Text
+  leadId         String        @map("lead_id")
+  lead           User          @relation("ProjectLead", fields: [leadId], references: [id])
+  status         ProjectStatus @default(PLANNED)
+  priority       Priority      @default(MEDIUM)
+  startDate      DateTime      @default(now()) @map("start_date") @db.Date
+  endDate        DateTime?     @map("end_date") @db.Date
+  notes          String?       @db.Text
+  createdById    String        @map("created_by_id")
+  createdBy      User          @relation("ProjectCreator", fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  experiments Experiment[]
+  strains     Strain[]
+
+  @@map("projects")
+}
+
+model Experiment {
+  id                 String       @id @default(cuid())
+  experimentId       String       @unique @map("experiment_id")
+  projectId          String       @map("project_id")
+  project            Project      @relation(fields: [projectId], references: [id])
+  parentExperimentId String?      @map("parent_experiment_id")
+  parentExperiment   Experiment?  @relation("ExperimentTree", fields: [parentExperimentId], references: [id])
+  childExperiments   Experiment[] @relation("ExperimentTree")
+  seqNum             Int          @map("seq_num")
+  title              String
+  type               WorkType?
+  executorId         String       @map("executor_id")
+  executor           User         @relation("ExperimentExecutor", fields: [executorId], references: [id])
+  startDate          DateTime     @default(now()) @map("start_date") @db.Date
+  endDate            DateTime?    @map("end_date") @db.Date
+  status             ExpStatus    @default(PLANNED)
+  result             ExpResult    @default(UNDEFINED)
+  objective          String?      @db.Text
+  conclusion         String?      @db.Text
+  nextSteps          String?      @map("next_steps") @db.Text
+  reportUrl          String?      @map("report_url")
+  notes              String?      @db.Text
+  createdById        String       @map("created_by_id")
+  createdBy          User         @relation("ExperimentCreator", fields: [createdById], references: [id])
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  tags        ExperimentTag[]
+  constructs  Construct[]
+  pcrProducts PcrProduct[]
+  stocks      Stock[]
+  files       File[]
+  samples     Sample[]
+  results     Result[]
+
+  @@map("experiments")
+}
+
+model ExperimentTag {
+  experimentId String     @map("experiment_id")
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  tagId        String     @map("tag_id")
+  tag          Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([experimentId, tagId])
+  @@map("experiment_tags")
+}
+
+model Strain {
+  id             String      @id @default(cuid())
+  strain         String      @unique
+  organism       Organism
+  fullName       String      @map("full_name")
+  strainType     StrainType? @map("strain_type")
+  genotype       String?
+  parentStrainId String?     @map("parent_strain_id")
+  parentStrain   Strain?     @relation("StrainTree", fields: [parentStrainId], references: [id])
+  childStrains   Strain[]    @relation("StrainTree")
+  constructId    String?     @map("construct_id")
+  construct      Construct?  @relation(fields: [constructId], references: [id])
+  projectId      String?     @map("project_id")
+  project        Project?    @relation(fields: [projectId], references: [id])
+  phenotype      String?     @db.Text
+  source         String?
+  status         String      @default("Активный")
+  notes          String?     @db.Text
+  createdById    String      @map("created_by_id")
+  createdBy      User        @relation(fields: [createdById], references: [id])
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  stocks  Stock[]
+  samples Sample[]
+
+  @@map("strains")
+}
+
+model Construct {
+  id           String         @id @default(cuid())
+  construct    String         @unique
+  fullName     String         @map("full_name")
+  type         ConstructType?
+  backbone     String?
+  promoterId   String?        @map("promoter_id")
+  promoter     Promoter?      @relation(fields: [promoterId], references: [id])
+  geneId       String?        @map("gene_id")
+  gene         Gene?          @relation(fields: [geneId], references: [id])
+  terminatorId String?        @map("terminator_id")
+  terminator   Terminator?    @relation(fields: [terminatorId], references: [id])
+  marker       String?
+  resistance   String?
+  sizeBp       Int?           @map("size_bp")
+  experimentId String?        @map("experiment_id")
+  experiment   Experiment?    @relation(fields: [experimentId], references: [id])
+  seqStatus    SeqStatus      @default(NOT_SEQUENCED) @map("seq_status")
+  mapUrl       String?        @map("map_url")
+  sequenceUrl  String?        @map("sequence_url")
+  description  String?        @db.Text
+  status       String         @default("Активный")
+  notes        String?        @db.Text
+  createdById  String         @map("created_by_id")
+  createdBy    User           @relation(fields: [createdById], references: [id])
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  strains        Strain[]
+  forwardPrimers Primer[] @relation("ForwardPrimer")
+  reversePrimers Primer[] @relation("ReversePrimer")
+
+  @@map("constructs")
+}
+
+model Primer {
+  id           String           @id @default(cuid())
+  primer       String           @unique
+  sequence53   String?          @map("sequence_5_3")
+  lengthBp     Int?             @map("length_bp")
+  tmC          Float?           @map("tm_c")
+  gcPercent    Float?           @map("gc_percent")
+  purpose      String?
+  target       String?
+  constructId         String?          @map("construct_id")
+  construct           Construct?       @relation("ForwardPrimer", fields: [constructId], references: [id])
+  reverseConstructId  String?          @map("reverse_construct_id")
+  reverseConstruct    Construct?       @relation("ReversePrimer", fields: [reverseConstructId], references: [id])
+  pairPrimerId        String?          @unique @map("pair_primer_id")
+  pairPrimer   Primer?          @relation("PrimerPair", fields: [pairPrimerId], references: [id])
+  pairedWith   Primer?          @relation("PrimerPair")
+  productBp    Int?             @map("product_bp")
+  locationId   String?          @map("location_id")
+  location     StorageLocation? @relation(fields: [locationId], references: [id])
+  stockUm      Float?           @map("stock_um")
+  supplier     String?
+  status       String           @default("Активный")
+  notes        String?          @db.Text
+
+  forwardPcrProducts PcrProduct[] @relation("ForwardPrimerPcr")
+  reversePcrProducts PcrProduct[] @relation("ReversePrimerPcr")
+
+  @@map("primers")
+}
+
+model PcrProduct {
+  id           String           @id @default(cuid())
+  pcrId        String           @unique @map("pcr_id")
+  name         String
+  template     String?
+  primerFId    String?          @map("primer_f_id")
+  primerF      Primer?          @relation("ForwardPrimerPcr", fields: [primerFId], references: [id])
+  primerRId    String?          @map("primer_r_id")
+  primerR      Primer?          @relation("ReversePrimerPcr", fields: [primerRId], references: [id])
+  sizeBp       Int?             @map("size_bp")
+  experimentId String?          @map("experiment_id")
+  experiment   Experiment?      @relation(fields: [experimentId], references: [id])
+  concNgUl     Float?           @map("conc_ng_ul")
+  volumeUl     Float?           @map("volume_ul")
+  locationId   String?          @map("location_id")
+  location     StorageLocation? @relation(fields: [locationId], references: [id])
+  verified     Verification     @default(NOT_VERIFIED)
+  status       String           @default("Активный")
+  notes        String?          @db.Text
+  createdById  String           @map("created_by_id")
+  createdBy    User             @relation(fields: [createdById], references: [id])
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@map("pcr_products")
+}
+
+model Stock {
+  id            String           @id @default(cuid())
+  stockId       String           @unique @map("stock_id")
+  strainId      String           @map("strain_id")
+  strain        Strain           @relation(fields: [strainId], references: [id])
+  stockType     StockType?       @map("stock_type")
+  createdDate   DateTime         @default(now()) @map("created_date") @db.Date
+  experimentId  String?          @map("experiment_id")
+  experiment    Experiment?      @relation(fields: [experimentId], references: [id])
+  parentStockId String?          @map("parent_stock_id")
+  parentStock   Stock?           @relation("StockTree", fields: [parentStockId], references: [id])
+  childStocks   Stock[]          @relation("StockTree")
+  locationId    String?          @map("location_id")
+  location      StorageLocation? @relation(fields: [locationId], references: [id])
+  boxId         String?          @map("box_id")
+  box           Box?             @relation(fields: [boxId], references: [id])
+  position      String?
+  quantity      Int?
+  verified      Verification     @default(NOT_VERIFIED)
+  status        String           @default("Активный")
+  thawCount     Int              @default(0) @map("thaw_count")
+  lastThaw      DateTime?        @map("last_thaw") @db.Date
+  notes         String?          @db.Text
+  createdById   String           @map("created_by_id")
+  createdBy     User             @relation(fields: [createdById], references: [id])
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@map("stocks")
+}
+
+model File {
+  id           String        @id @default(cuid())
+  fileId       String        @unique @map("file_id")
+  experimentId String        @map("experiment_id")
+  experiment   Experiment    @relation(fields: [experimentId], references: [id])
+  fileType     FileType      @map("file_type")
+  analysisType AnalysisType? @map("analysis_type")
+  gelType      GelType?      @map("gel_type")
+  percentage   Float?
+  marker       String?
+  samples      String?       @db.Text
+  expected     String?
+  actual       String?
+  conclusion   String?       @db.Text
+  filePath     String?       @map("file_path")
+  fileName     String?       @map("file_name")
+  description  String?       @db.Text
+  uploadedById String        @map("uploaded_by_id")
+  uploadedBy   User          @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime      @default(now()) @map("uploaded_at")
+
+  @@map("files")
+}
+
+model Protocol {
+  id          String            @id @default(cuid())
+  protocol    String            @unique
+  fullName    String            @map("full_name")
+  category    ProtocolCategory?
+  version     String            @default("1.0")
+  authorId    String            @map("author_id")
+  author      User              @relation(fields: [authorId], references: [id])
+  description String?           @db.Text
+  documentUrl String?           @map("document_url")
+  status      String            @default("Активный")
+  notes       String?           @db.Text
+
+  @@map("protocols")
+}
+
+model Sample {
+  id           String           @id @default(cuid())
+  sampleId     String           @unique @map("sample_id")
+  name         String
+  sampleType   SampleType?      @map("sample_type")
+  strainId     String?          @map("strain_id")
+  strain       Strain?          @relation(fields: [strainId], references: [id])
+  experimentId String?          @map("experiment_id")
+  experiment   Experiment?      @relation(fields: [experimentId], references: [id])
+  concNgUl     Float?           @map("conc_ng_ul")
+  volumeUl     Float?           @map("volume_ul")
+  locationId   String?          @map("location_id")
+  location     StorageLocation? @relation(fields: [locationId], references: [id])
+  boxId        String?          @map("box_id")
+  box          Box?             @relation(fields: [boxId], references: [id])
+  position     String?
+  status       String           @default("Активный")
+  notes        String?          @db.Text
+  createdById  String           @map("created_by_id")
+  createdBy    User             @relation(fields: [createdById], references: [id])
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@map("samples")
+}
+
+model Reagent {
+  id            String           @id @default(cuid())
+  reagentId     String           @unique @map("reagent_id")
+  name          String
+  category      ReagentCategory?
+  catalogNumber String?          @map("catalog_number")
+  supplier      String?
+  lotNumber     String?          @map("lot_number")
+  expiryDate    DateTime?        @map("expiry_date") @db.Date
+  locationId    String?          @map("location_id")
+  location      StorageLocation? @relation(fields: [locationId], references: [id])
+  quantity      String?
+  status        String           @default("В наличии")
+  notes         String?          @db.Text
+
+  @@map("reagents")
+}
+
+model Consumable {
+  id            String              @id @default(cuid())
+  consumableId  String              @unique @map("consumable_id")
+  name          String
+  category      ConsumableCategory?
+  catalogNumber String?             @map("catalog_number")
+  supplier      String?
+  quantity      Int?
+  minQuantity   Int?                @map("min_quantity")
+  status        String              @default("В наличии")
+  notes         String?             @db.Text
+
+  @@map("consumables")
+}
+
+model Equipment {
+  id           String           @id @default(cuid())
+  equipmentId  String           @unique @map("equipment_id")
+  name         String
+  model        String?
+  serialNumber String?          @map("serial_number")
+  locationId   String?          @map("location_id")
+  location     StorageLocation? @relation(fields: [locationId], references: [id])
+  status       String           @default("Работает")
+  lastService  DateTime?        @map("last_service") @db.Date
+  notes        String?          @db.Text
+
+  @@map("equipment")
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  messageId String        @unique @map("message_id")
+  fromId    String        @map("from_id")
+  from      User          @relation("MessageFrom", fields: [fromId], references: [id])
+  toId      String        @map("to_id")
+  to        User          @relation("MessageTo", fields: [toId], references: [id])
+  createdAt DateTime      @default(now()) @map("created_at")
+  title     String
+  text      String?       @db.Text
+  color     MessageColor  @default(WHITE)
+  status    MessageStatus @default(NEW)
+  dueDate   DateTime?     @map("due_date") @db.Date
+  tasks     Task[]
+
+  @@map("messages")
+}
+
+model Task {
+  id           String    @id @default(cuid())
+  taskId       String    @unique @map("task_id")
+  messageId    String    @map("message_id")
+  message      Message   @relation(fields: [messageId], references: [id])
+  taskText     String    @map("task_text")
+  assignedToId String    @map("assigned_to_id")
+  assignedTo   User      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  isDone       Boolean   @default(false) @map("is_done")
+  doneById     String?   @map("done_by_id")
+  doneBy       User?     @relation("TaskCompleter", fields: [doneById], references: [id])
+  doneAt       DateTime? @map("done_at")
+
+  @@map("tasks")
+}
+
+model Result {
+  id           String     @id @default(cuid())
+  resultId     String     @unique @map("result_id")
+  experimentId String     @map("experiment_id")
+  experiment   Experiment @relation(fields: [experimentId], references: [id])
+  parameter    String
+  value        String
+  unit         String?
+  notes        String?    @db.Text
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("results")
+}
